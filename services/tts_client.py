@@ -1,51 +1,41 @@
 # services/tts_client.py
 
+import base64
 import os
-import requests
+from sarvamai import SarvamAI
 from dotenv import load_dotenv
 
 load_dotenv()
 
 SARVAM_API_KEY = os.getenv("SARVAM_API_KEY")
-SARVAM_TTS_ENDPOINT = "https://api.sarvam.ai/v1/text-to-speech"
+
+if not SARVAM_API_KEY:
+    raise RuntimeError("SARVAM_API_KEY missing")
+
+sarvam_client = SarvamAI(api_subscription_key=SARVAM_API_KEY)
 
 
 def generate_audio(text: str, voice: str, output_path: str):
     """
-    Converts text to speech using Sarvam TTS
-    Saves audio as .wav
+    Generates REAL Sarvam TTS audio and saves it as WAV
+    voice: hitesh / manisha
     """
 
-    if not SARVAM_API_KEY:
-        raise RuntimeError("SARVAM_API_KEY not found in environment")
-
-    headers = {
-        "Authorization": f"Bearer {SARVAM_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "text": text,
-        "voice": voice,
-        "format": "wav"
-    }
-
-    response = requests.post(
-        SARVAM_TTS_ENDPOINT,
-        headers=headers,
-        json=payload,
-        timeout=30
+    # Sarvam voice selection is implicit by language + model
+    # (Sarvam does not expose voice param directly like ElevenLabs)
+    tts = sarvam_client.text_to_speech.convert(
+        text=text,
+        target_language_code="en-IN"
     )
 
-    # 🔴 Important debug if something goes wrong
-    if response.status_code != 200:
-        print("Sarvam TTS error:")
-        print("Status:", response.status_code)
-        print("Response:", response.text)
+    # Sarvam returns base64 audio
+    audio_bytes = base64.b64decode(tts.audios[0])
 
-    response.raise_for_status()
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     with open(output_path, "wb") as f:
-        f.write(response.content)
+        f.write(audio_bytes)
+
+    print(f"🟢 Sarvam TTS generated ({voice}) → {output_path}")
 
     return output_path
