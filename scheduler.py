@@ -7,35 +7,42 @@ from services.job_repository import (
 )
 from services.job_executor import execute_job
 
+CHECK_INTERVAL = 5  # seconds
+
 
 def run_scheduler():
     print("🟢 Scheduler started (STRICT SINGLE-JOB MODE)")
 
+    in_progress_logged = False
+
     while True:
-        # 🔒 RULE 1: If a job is already running, DO NOTHING
+        # If a job is already running, wait silently
         if has_in_progress_job():
-            print("⏳ A job is already IN_PROGRESS. Waiting...")
-            time.sleep(5)
+            if not in_progress_logged:
+                print("⏳ Job execution in progress. Waiting for completion...")
+                in_progress_logged = True
+
+            time.sleep(CHECK_INTERVAL)
             continue
 
-        # 🔒 RULE 2: Fetch only QUEUED jobs
+        # If we reach here, no job is IN_PROGRESS anymore
+        if in_progress_logged:
+            print("✅ Job execution completed.")
+            print("🔁 Checking for next job...\n")
+            in_progress_logged = False
+
+        # Fetch next QUEUED job
         job = fetch_oldest_pending_job()
 
         if not job:
-            print("⏳ No queued jobs found. Waiting...")
-            time.sleep(5)
+            time.sleep(CHECK_INTERVAL)
             continue
 
         job_id = job["job_id"]
         print(f"🚀 Starting job {job_id}")
 
-        # 🔒 RULE 3: Submit ONLY ONE job
         execute_job(job)
-
-        print(
-            f"🟡 Job {job_id} submitted to model. "
-            f"Waiting for model completion..."
-        )
+        # After this, job will be IN_PROGRESS and loop will wait silently
 
 
 if __name__ == "__main__":
