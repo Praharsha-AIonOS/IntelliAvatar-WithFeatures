@@ -82,7 +82,7 @@ def list_jobs():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM jobs ORDER BY created_at DESC")
+    cursor.execute("SELECT * FROM jobs ORDER BY created_at")
     rows = cursor.fetchall()
 
     conn.close()
